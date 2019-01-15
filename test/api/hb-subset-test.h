@@ -47,18 +47,6 @@ typedef short bool;
 
 HB_BEGIN_DECLS
 
-static inline hb_face_t *
-hb_subset_test_open_font (const char *font_path)
-{
-#if GLIB_CHECK_VERSION(2,37,2)
-  char* path = g_test_build_filename(G_TEST_DIST, font_path, NULL);
-#else
-  char* path = g_strdup(font_path);
-#endif
-
-  return hb_face_create (hb_blob_create_from_file (path), 0);
-}
-
 static inline hb_subset_input_t *
 hb_subset_test_create_input(const hb_set_t  *codepoints)
 {
@@ -72,11 +60,9 @@ static inline hb_face_t *
 hb_subset_test_create_subset (hb_face_t *source,
                               hb_subset_input_t *input)
 {
-  hb_subset_profile_t *profile = hb_subset_profile_create();
-  hb_face_t *subset = hb_subset (source, profile, input);
+  hb_face_t *subset = hb_subset (source, input);
   g_assert (subset);
 
-  hb_subset_profile_destroy (profile);
   hb_subset_input_destroy (input);
   return subset;
 }
@@ -87,7 +73,7 @@ hb_subset_test_check (hb_face_t *expected,
                       hb_tag_t   table)
 {
   hb_blob_t *expected_blob, *actual_blob;
-  fprintf(stderr, "compare %c%c%c%c\n", HB_UNTAG(table));
+  //fprintf(stderr, "comparing %c%c%c%c ", HB_UNTAG(table));
   expected_blob = hb_face_reference_table (expected, table);
   actual_blob = hb_face_reference_table (actual, table);
   hb_test_assert_blobs_equal (expected_blob, actual_blob);
