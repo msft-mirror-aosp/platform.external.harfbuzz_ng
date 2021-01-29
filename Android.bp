@@ -79,6 +79,7 @@ cc_library {
         "src/hb-ot-map.cc",
         "src/hb-ot-math.cc",
         "src/hb-ot-metrics.cc",
+        "src/hb-ot-name.cc",
         "src/hb-ot-shape-complex-arabic.cc",
         "src/hb-ot-shape-complex-default.cc",
         "src/hb-ot-shape-complex-hangul.cc",
@@ -108,16 +109,11 @@ cc_library {
     target: {
         android: {
             shared_libs: [
-                "libandroidicu",
                 "libcutils",
                 "libutils",
             ],
         },
         host: {
-            shared_libs: [
-                "libicui18n",
-                "libicuuc",
-            ],
             static_libs: [
                 "libcutils",
                 "libutils",
@@ -129,6 +125,7 @@ cc_library {
     },
 
     shared_libs: [
+        "libicu",
         "liblog",
     ],
 
