@@ -1,17 +1,12 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
-"""usage: ./gen-indic-table.py IndicSyllabicCategory.txt IndicPositionalCategory.txt Blocks.txt
+from __future__ import print_function, division, absolute_import
 
-Input files:
-* https://unicode.org/Public/UCD/latest/ucd/IndicSyllabicCategory.txt
-* https://unicode.org/Public/UCD/latest/ucd/IndicPositionalCategory.txt
-* https://unicode.org/Public/UCD/latest/ucd/Blocks.txt
-"""
-
-import sys
+import io, sys
 
 if len (sys.argv) != 4:
-	sys.exit (__doc__)
+	print ("usage: ./gen-indic-table.py IndicSyllabicCategory.txt IndicPositionalCategory.txt Blocks.txt", file=sys.stderr)
+	sys.exit (1)
 
 ALLOWED_SINGLES = [0x00A0, 0x25CC]
 ALLOWED_BLOCKS = [
@@ -37,12 +32,12 @@ ALLOWED_BLOCKS = [
 	'Myanmar Extended-A',
 ]
 
-files = [open (x, encoding='utf-8') for x in sys.argv[1:]]
+files = [io.open (x, encoding='utf-8') for x in sys.argv[1:]]
 
 headers = [[f.readline () for i in range (2)] for f in files]
 
-data = [{} for _ in files]
-values = [{} for _ in files]
+data = [{} for f in files]
+values = [{} for f in files]
 for i, f in enumerate (files):
 	for line in f:
 
@@ -82,6 +77,7 @@ for i,d in enumerate (data):
 combined = {k:v for k,v in combined.items() if k in ALLOWED_SINGLES or v[2] in ALLOWED_BLOCKS}
 data = combined
 del combined
+num = len (data)
 
 # Move the outliers NO-BREAK SPACE and DOTTED CIRCLE out
 singles = {}
@@ -200,7 +196,7 @@ num = 0
 offset = 0
 starts = []
 ends = []
-print ("static const uint16_t indic_table[] = {")
+print ("static const INDIC_TABLE_ELEMENT_TYPE indic_table[] = {")
 for u in uu:
 	if u <= last:
 		continue
@@ -215,6 +211,7 @@ for u in uu:
 	if start != last + 1:
 		if start - last <= 1+16*3:
 			print_block (None, last+1, start-1, data)
+			last = start-1
 		else:
 			if last >= 0:
 				ends.append (last + 1)
@@ -234,7 +231,7 @@ occupancy = used * 100. / total
 page_bits = 12
 print ("}; /* Table items: %d; occupancy: %d%% */" % (offset, occupancy))
 print ()
-print ("uint16_t")
+print ("INDIC_TABLE_ELEMENT_TYPE")
 print ("hb_indic_get_categories (hb_codepoint_t u)")
 print ("{")
 print ("  switch (u >> %d)" % page_bits)
