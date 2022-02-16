@@ -1,14 +1,12 @@
 FONTS:
 cmap14_font1.otf
-cmap14_font2.otf
 
 PROFILES:
-notdef-outline.txt
-notdef-outline-drop-hints.txt
-notdef-outline-drop-hints-retain-gids.txt
-notdef-outline-retain-gids.txt
-notdef-outline-name-ids.txt
-notdef-outline-gids.txt
+default.txt
+drop-hints.txt
+drop-hints-retain-gids.txt
+retain-gids.txt
+name-ids.txt
 
 SUBSETS:
 一丂七

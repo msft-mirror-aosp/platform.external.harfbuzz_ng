@@ -35,6 +35,8 @@
 #undef HB_STRING_ARRAY_LIST
 #undef HB_STRING_ARRAY_NAME
 
+#define NUM_FORMAT1_NAMES 258
+
 /*
  * post -- PostScript
  * https://docs.microsoft.com/en-us/typography/opentype/spec/post
@@ -55,15 +57,8 @@ struct postV2Tail
     return_trace (glyphNameIndex.sanitize (c));
   }
 
-  template<typename Iterator>
-  bool serialize (hb_serialize_context_t *c,
-                  Iterator it,
-                  const void* _post) const;
-
-  bool subset (hb_subset_context_t *c) const;
-
   protected:
-  Array16Of<HBUINT16>	glyphNameIndex;	/* This is not an offset, but is the
+  ArrayOf<HBUINT16>	glyphNameIndex;	/* This is not an offset, but is the
 					 * ordinal number of the glyph in 'post'
 					 * string tables. */
 /*UnsizedArrayOf<HBUINT8>
@@ -78,18 +73,13 @@ struct post
 {
   static constexpr hb_tag_t tableTag = HB_OT_TAG_post;
 
-  bool serialize (hb_serialize_context_t *c, bool glyph_names) const
+  void serialize (hb_serialize_context_t *c) const
   {
-    TRACE_SERIALIZE (this);
     post *post_prime = c->allocate_min<post> ();
-    if (unlikely (!post_prime))  return_trace (false);
+    if (unlikely (!post_prime))  return;
 
     memcpy (post_prime, this, post::min_size);
-    if (!glyph_names)
-      return_trace (c->check_assign (post_prime->version.major, 3,
-                                     HB_SERIALIZE_ERROR_INT_OVERFLOW)); // Version 3 does not have any glyph names.
-
-    return_trace (true);
+    post_prime->version.major = 3; // Version 3 does not have any glyph names.
   }
 
   bool subset (hb_subset_context_t *c) const
@@ -98,19 +88,14 @@ struct post
     post *post_prime = c->serializer->start_embed<post> ();
     if (unlikely (!post_prime)) return_trace (false);
 
-    bool glyph_names = c->plan->flags & HB_SUBSET_FLAGS_GLYPH_NAMES;
-    if (!serialize (c->serializer, glyph_names))
-      return_trace (false);
-
-    if (glyph_names && version.major == 2)
-      return_trace (v2X.subset (c));
+    serialize (c->serializer);
+    if (c->serializer->in_error () || c->serializer->ran_out_of_room) return_trace (false);
 
     return_trace (true);
   }
 
   struct accelerator_t
   {
-    friend struct postV2Tail;
     void init (hb_face_t *face)
     {
       index_to_offset.init ();
@@ -135,7 +120,7 @@ struct post
     void fini ()
     {
       index_to_offset.fini ();
-      hb_free (gids_sorted_by_name.get ());
+      free (gids_sorted_by_name.get ());
       table.destroy ();
     }
 
@@ -166,7 +151,7 @@ struct post
 
       if (unlikely (!gids))
       {
-	gids = (uint16_t *) hb_malloc (count * sizeof (gids[0]));
+	gids = (uint16_t *) malloc (count * sizeof (gids[0]));
 	if (unlikely (!gids))
 	  return false; /* Anything better?! */
 
@@ -176,13 +161,14 @@ struct post
 
 	if (unlikely (!gids_sorted_by_name.cmpexch (nullptr, gids)))
 	{
-	  hb_free (gids);
+	  free (gids);
 	  goto retry;
 	}
       }
 
       hb_bytes_t st (name, len);
-      auto* gid = hb_bsearch (st, gids, count, sizeof (gids[0]), cmp_key, (void *) this);
+      const uint16_t *gid = (const uint16_t *) hb_bsearch (hb_addressof (st), gids, count,
+							   sizeof (gids[0]), cmp_key, (void *) this);
       if (gid)
       {
 	*glyph = *gid;
@@ -199,7 +185,7 @@ struct post
     unsigned int get_glyph_count () const
     {
       if (version == 0x00010000)
-	return format1_names_length;
+	return NUM_FORMAT1_NAMES;
 
       if (version == 0x00020000)
 	return glyphNameIndex->len;
@@ -227,7 +213,7 @@ struct post
     {
       if (version == 0x00010000)
       {
-	if (glyph >= format1_names_length)
+	if (glyph >= NUM_FORMAT1_NAMES)
 	  return hb_bytes_t ();
 
 	return format1_names (glyph);
@@ -237,9 +223,9 @@ struct post
 	return hb_bytes_t ();
 
       unsigned int index = glyphNameIndex->arrayZ[glyph];
-      if (index < format1_names_length)
+      if (index < NUM_FORMAT1_NAMES)
 	return format1_names (index);
-      index -= format1_names_length;
+      index -= NUM_FORMAT1_NAMES;
 
       if (index >= index_to_offset.length)
 	return hb_bytes_t ();
@@ -254,7 +240,7 @@ struct post
 
     private:
     uint32_t version;
-    const Array16Of<HBUINT16> *glyphNameIndex;
+    const ArrayOf<HBUINT16> *glyphNameIndex;
     hb_vector_t<uint32_t> index_to_offset;
     const uint8_t *pool;
     hb_atomic_ptr_t<uint16_t *> gids_sorted_by_name;
@@ -276,7 +262,7 @@ struct post
 					 * 0x00020000 for version 2.0
 					 * 0x00025000 for version 2.5 (deprecated)
 					 * 0x00030000 for version 3.0 */
-  HBFixed	italicAngle;		/* Italic angle in counter-clockwise degrees
+  HBFixed		italicAngle;		/* Italic angle in counter-clockwise degrees
 					 * from the vertical. Zero for upright text,
 					 * negative for text that leans to the right
 					 * (forward). */
