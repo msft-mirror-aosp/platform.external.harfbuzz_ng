@@ -120,7 +120,6 @@ struct hb_font_t
   /* Font variation coordinates. */
   unsigned int num_coords;
   int *coords;
-  float *design_coords;
 
   hb_font_funcs_t   *klass;
   void              *user_data;
@@ -217,10 +216,9 @@ struct hb_font_t
   }
 
   hb_bool_t get_nominal_glyph (hb_codepoint_t unicode,
-			       hb_codepoint_t *glyph,
-			       hb_codepoint_t not_found = 0)
+			       hb_codepoint_t *glyph)
   {
-    *glyph = not_found;
+    *glyph = 0;
     return klass->get.f.nominal_glyph (this, user_data,
 				       unicode, glyph,
 				       klass->user_data.nominal_glyph);
@@ -239,10 +237,9 @@ struct hb_font_t
   }
 
   hb_bool_t get_variation_glyph (hb_codepoint_t unicode, hb_codepoint_t variation_selector,
-				 hb_codepoint_t *glyph,
-				 hb_codepoint_t not_found = 0)
+				 hb_codepoint_t *glyph)
   {
-    *glyph = not_found;
+    *glyph = 0;
     return klass->get.f.variation_glyph (this, user_data,
 					 unicode, variation_selector, glyph,
 					 klass->user_data.variation_glyph);
@@ -289,7 +286,7 @@ struct hb_font_t
   }
 
   hb_bool_t get_glyph_h_origin (hb_codepoint_t glyph,
-				hb_position_t *x, hb_position_t *y)
+			        hb_position_t *x, hb_position_t *y)
   {
     *x = *y = 0;
     return klass->get.f.glyph_h_origin (this, user_data,
@@ -341,7 +338,7 @@ struct hb_font_t
   }
 
   hb_bool_t get_glyph_contour_point (hb_codepoint_t glyph, unsigned int point_index,
-				     hb_position_t *x, hb_position_t *y)
+					    hb_position_t *x, hb_position_t *y)
   {
     *x = *y = 0;
     return klass->get.f.glyph_contour_point (this, user_data,
@@ -620,7 +617,9 @@ struct hb_font_t
   }
 
   hb_position_t em_mult (int16_t v, int64_t mult)
-  { return (hb_position_t) ((v * mult + 32768) >> 16); }
+  {
+    return (hb_position_t) ((v * mult) >> 16);
+  }
   hb_position_t em_scalef (float v, int scale)
   { return (hb_position_t) roundf (v * scale / face->get_upem ()); }
   float em_fscale (int16_t v, int scale)

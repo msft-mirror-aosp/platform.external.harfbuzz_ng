@@ -69,6 +69,7 @@ _hb_options_init ()
 	if (0 == strncmp (c, name, p - c) && strlen (name) == static_cast<size_t>(p - c)) do { u.opts.symbol = true; } while (0)
 
       OPTION ("uniscribe-bug-compatible", uniscribe_bug_compatible);
+      OPTION ("aat", aat);
 
 #undef OPTION
 
@@ -86,15 +87,12 @@ _hb_options_init ()
 
 /**
  * hb_tag_from_string:
- * @str: (array length=len) (element-type uint8_t): String to convert
- * @len: Length of @str, or -1 if it is %NULL-terminated
+ * @str: (array length=len) (element-type uint8_t):
+ * @len:
  *
- * Converts a string into an #hb_tag_t. Valid tags
- * are four characters. Shorter input strings will be
- * padded with spaces. Longer input strings will be
- * truncated.
  *
- * Return value: The #hb_tag_t corresponding to @str
+ *
+ * Return value:
  *
  * Since: 0.9.2
  **/
@@ -119,11 +117,10 @@ hb_tag_from_string (const char *str, int len)
 
 /**
  * hb_tag_to_string:
- * @tag: #hb_tag_t to convert
- * @buf: (out caller-allocates) (array fixed-size=4) (element-type uint8_t): Converted string
+ * @tag:
+ * @buf: (out caller-allocates) (array fixed-size=4) (element-type uint8_t):
  *
- * Converts an #hb_tag_t to a string and returns it in @buf. 
- * Strings will be four characters long.
+ *
  *
  * Since: 0.9.5
  **/
@@ -148,17 +145,12 @@ const char direction_strings[][4] = {
 
 /**
  * hb_direction_from_string:
- * @str: (array length=len) (element-type uint8_t): String to convert
- * @len: Length of @str, or -1 if it is %NULL-terminated
+ * @str: (array length=len) (element-type uint8_t):
+ * @len:
  *
- * Converts a string to an #hb_direction_t. 
  *
- * Matching is loose and applies only to the first letter. For
- * examples, "LTR" and "left-to-right" will both return #HB_DIRECTION_LTR.
  *
- * Unmatched strings will return #HB_DIRECTION_INVALID.
- * 
- * Return value: The #hb_direction_t matching @str
+ * Return value:
  *
  * Since: 0.9.2
  **/
@@ -181,11 +173,11 @@ hb_direction_from_string (const char *str, int len)
 
 /**
  * hb_direction_to_string:
- * @direction: The #hb_direction_t to convert
+ * @direction:
  *
- * Converts an #hb_direction_t to a string.
  *
- * Return value: (transfer none): The string corresponding to @direction
+ *
+ * Return value: (transfer none):
  *
  * Since: 0.9.2
  **/
@@ -257,11 +249,13 @@ struct hb_language_item_t {
   bool operator == (const char *s) const
   { return lang_equal (lang, s); }
 
-  hb_language_item_t & operator = (const char *s)
-  {
-    /* We can't call strdup(), because we allow custom allocators. */
+  hb_language_item_t & operator = (const char *s) {
+    /* If a custom allocated is used calling strdup() pairs
+    badly with a call to the custom free() in fini() below.
+    Therefore don't call strdup(), implement its behavior.
+    */
     size_t len = strlen(s) + 1;
-    lang = (hb_language_t) hb_malloc(len);
+    lang = (hb_language_t) malloc(len);
     if (likely (lang))
     {
       memcpy((unsigned char *) lang, s, len);
@@ -272,15 +266,16 @@ struct hb_language_item_t {
     return *this;
   }
 
-  void fini () { hb_free ((void *) lang); }
+  void fini () { free ((void *) lang); }
 };
 
 
-/* Thread-safe lockfree language list */
+/* Thread-safe lock-free language list */
 
 static hb_atomic_ptr_t <hb_language_item_t> langs;
 
-static inline void
+#if HB_USE_ATEXIT
+static void
 free_langs ()
 {
 retry:
@@ -291,10 +286,11 @@ retry:
   while (first_lang) {
     hb_language_item_t *next = first_lang->next;
     first_lang->fini ();
-    hb_free (first_lang);
+    free (first_lang);
     first_lang = next;
   }
 }
+#endif
 
 static hb_language_item_t *
 lang_find_or_insert (const char *key)
@@ -307,26 +303,28 @@ retry:
       return lang;
 
   /* Not found; allocate one. */
-  hb_language_item_t *lang = (hb_language_item_t *) hb_calloc (1, sizeof (hb_language_item_t));
+  hb_language_item_t *lang = (hb_language_item_t *) calloc (1, sizeof (hb_language_item_t));
   if (unlikely (!lang))
     return nullptr;
   lang->next = first_lang;
   *lang = key;
   if (unlikely (!lang->lang))
   {
-    hb_free (lang);
+    free (lang);
     return nullptr;
   }
 
   if (unlikely (!langs.cmpexch (first_lang, lang)))
   {
     lang->fini ();
-    hb_free (lang);
+    free (lang);
     goto retry;
   }
 
+#if HB_USE_ATEXIT
   if (!first_lang)
-    hb_atexit (free_langs); /* First person registers atexit() callback. */
+    atexit (free_langs); /* First person registers atexit() callback. */
+#endif
 
   return lang;
 }
@@ -335,14 +333,14 @@ retry:
 /**
  * hb_language_from_string:
  * @str: (array length=len) (element-type uint8_t): a string representing
- *       a BCP 47 language tag
+ *       a BCP 47 language tag
  * @len: length of the @str, or -1 if it is %NULL-terminated.
  *
- * Converts @str representing a BCP 47 language tag to the corresponding
+ * Converts @str representing a BCP 47 language tag to the corresponding
  * #hb_language_t.
  *
  * Return value: (transfer none):
- * The #hb_language_t corresponding to the BCP 47 language tag.
+ * The #hb_language_t corresponding to the BCP 47 language tag.
  *
  * Since: 0.9.2
  **/
@@ -370,9 +368,9 @@ hb_language_from_string (const char *str, int len)
 
 /**
  * hb_language_to_string:
- * @language: The #hb_language_t to convert
+ * @language: an #hb_language_t to convert.
  *
- * Converts an #hb_language_t to a string.
+ * See hb_language_from_string().
  *
  * Return value: (transfer none):
  * A %NULL-terminated string representing the @language. Must not be freed by
@@ -391,17 +389,16 @@ hb_language_to_string (hb_language_t language)
 /**
  * hb_language_get_default:
  *
- * Fetch the default language from current locale.
+ * Get default language from current locale.
  *
- * <note>Note that the first time this function is called, it calls
+ * Note that the first time this function is called, it calls
  * "setlocale (LC_CTYPE, nullptr)" to fetch current locale.  The underlying
  * setlocale function is, in many implementations, NOT threadsafe.  To avoid
  * problems, call this function once before multiple threads can call it.
  * This function is only used from hb_buffer_guess_segment_properties() by
- * HarfBuzz itself.</note>
+ * HarfBuzz itself.
  *
- * Return value: (transfer none): The default language of the locale as
- * an #hb_language_t
+ * Return value: (transfer none):
  *
  * Since: 0.9.2
  **/
@@ -425,12 +422,12 @@ hb_language_get_default ()
 
 /**
  * hb_script_from_iso15924_tag:
- * @tag: an #hb_tag_t representing an ISO 15924 tag.
+ * @tag: an #hb_tag_t representing an ISO 15924 tag.
  *
- * Converts an ISO 15924 script tag to a corresponding #hb_script_t.
+ * Converts an ISO 15924 script tag to a corresponding #hb_script_t.
  *
  * Return value:
- * An #hb_script_t corresponding to the ISO 15924 tag.
+ * An #hb_script_t corresponding to the ISO 15924 tag.
  *
  * Since: 0.9.2
  **/
@@ -452,12 +449,7 @@ hb_script_from_iso15924_tag (hb_tag_t tag)
     case HB_TAG('Q','a','a','c'): return HB_SCRIPT_COPTIC;
 
     /* Script variants from https://unicode.org/iso15924/ */
-    case HB_TAG('A','r','a','n'): return HB_SCRIPT_ARABIC;
     case HB_TAG('C','y','r','s'): return HB_SCRIPT_CYRILLIC;
-    case HB_TAG('G','e','o','k'): return HB_SCRIPT_GEORGIAN;
-    case HB_TAG('H','a','n','s'): return HB_SCRIPT_HAN;
-    case HB_TAG('H','a','n','t'): return HB_SCRIPT_HAN;
-    case HB_TAG('J','a','m','o'): return HB_SCRIPT_HANGUL;
     case HB_TAG('L','a','t','f'): return HB_SCRIPT_LATIN;
     case HB_TAG('L','a','t','g'): return HB_SCRIPT_LATIN;
     case HB_TAG('S','y','r','e'): return HB_SCRIPT_SYRIAC;
@@ -476,15 +468,15 @@ hb_script_from_iso15924_tag (hb_tag_t tag)
 /**
  * hb_script_from_string:
  * @str: (array length=len) (element-type uint8_t): a string representing an
- *       ISO 15924 tag.
+ *       ISO 15924 tag.
  * @len: length of the @str, or -1 if it is %NULL-terminated.
  *
- * Converts a string @str representing an ISO 15924 script tag to a
+ * Converts a string @str representing an ISO 15924 script tag to a
  * corresponding #hb_script_t. Shorthand for hb_tag_from_string() then
  * hb_script_from_iso15924_tag().
  *
  * Return value:
- * An #hb_script_t corresponding to the ISO 15924 tag.
+ * An #hb_script_t corresponding to the ISO 15924 tag.
  *
  * Since: 0.9.2
  **/
@@ -498,10 +490,10 @@ hb_script_from_string (const char *str, int len)
  * hb_script_to_iso15924_tag:
  * @script: an #hb_script_t to convert.
  *
- * Converts an #hb_script_t to a corresponding ISO 15924 script tag.
+ * See hb_script_from_iso15924_tag().
  *
  * Return value:
- * An #hb_tag_t representing an ISO 15924 script tag.
+ * An #hb_tag_t representing an ISO 15924 script tag.
  *
  * Since: 0.9.2
  **/
@@ -513,16 +505,11 @@ hb_script_to_iso15924_tag (hb_script_t script)
 
 /**
  * hb_script_get_horizontal_direction:
- * @script: The #hb_script_t to query
+ * @script:
  *
- * Fetches the #hb_direction_t of a script when it is
- * set horizontally. All right-to-left scripts will return
- * #HB_DIRECTION_RTL. All left-to-right scripts will return
- * #HB_DIRECTION_LTR.  Scripts that can be written either
- * horizontally or vertically will return #HB_DIRECTION_INVALID.
- * Unknown scripts will return #HB_DIRECTION_LTR.
  *
- * Return value: The horizontal #hb_direction_t of @script
+ *
+ * Return value:
  *
  * Since: 0.9.2
  **/
@@ -588,16 +575,6 @@ hb_script_get_horizontal_direction (hb_script_t script)
     case HB_SCRIPT_OLD_SOGDIAN:
     case HB_SCRIPT_SOGDIAN:
 
-    /* Unicode-12.0 additions */
-    case HB_SCRIPT_ELYMAIC:
-
-    /* Unicode-13.0 additions */
-    case HB_SCRIPT_CHORASMIAN:
-    case HB_SCRIPT_YEZIDI:
-
-    /* Unicode-14.0 additions */
-    case HB_SCRIPT_OLD_UYGHUR:
-
       return HB_DIRECTION_RTL;
 
 
@@ -610,6 +587,38 @@ hb_script_get_horizontal_direction (hb_script_t script)
   }
 
   return HB_DIRECTION_LTR;
+}
+
+
+/* hb_user_data_array_t */
+
+bool
+hb_user_data_array_t::set (hb_user_data_key_t *key,
+			   void *              data,
+			   hb_destroy_func_t   destroy,
+			   hb_bool_t           replace)
+{
+  if (!key)
+    return false;
+
+  if (replace) {
+    if (!data && !destroy) {
+      items.remove (key, lock);
+      return true;
+    }
+  }
+  hb_user_data_item_t item = {key, data, destroy};
+  bool ret = !!items.replace_or_insert (item, lock, (bool) replace);
+
+  return ret;
+}
+
+void *
+hb_user_data_array_t::get (hb_user_data_key_t *key)
+{
+  hb_user_data_item_t item = {nullptr, nullptr, nullptr};
+
+  return items.find (key, &item, lock) ? item.data : nullptr;
 }
 
 
@@ -630,9 +639,9 @@ hb_script_get_horizontal_direction (hb_script_t script)
 
 /**
  * hb_version:
- * @major: (out): Library major version component
- * @minor: (out): Library minor version component
- * @micro: (out): Library micro version component
+ * @major: (out): Library major version component.
+ * @minor: (out): Library minor version component.
+ * @micro: (out): Library micro version component.
  *
  * Returns library version as three integer components.
  *
@@ -653,7 +662,7 @@ hb_version (unsigned int *major,
  *
  * Returns library version as a string with three components.
  *
- * Return value: Library version string
+ * Return value: library version string.
  *
  * Since: 0.9.2
  **/
@@ -665,15 +674,13 @@ hb_version_string ()
 
 /**
  * hb_version_atleast:
- * @major: Library major version component
- * @minor: Library minor version component
- * @micro: Library micro version component
+ * @major:
+ * @minor:
+ * @micro:
  *
- * Tests the library version against a minimum value,
- * as three integer components.
  *
- * Return value: %true if the library is equal to or greater than
- * the test value, %false otherwise
+ *
+ * Return value:
  *
  * Since: 0.9.30
  **/
@@ -902,7 +909,7 @@ parse_one_feature (const char **pp, const char *end, hb_feature_t *feature)
  * </informaltable>
  *
  * Return value:
- * %true if @str is successfully parsed, %false otherwise
+ * %true if @str is successfully parsed, %false otherwise.
  *
  * Since: 0.9.5
  **/
@@ -953,14 +960,14 @@ hb_feature_to_string (hb_feature_t *feature,
   len += 4;
   while (len && s[len - 1] == ' ')
     len--;
-  if (feature->start != HB_FEATURE_GLOBAL_START || feature->end != HB_FEATURE_GLOBAL_END)
+  if (feature->start != 0 || feature->end != (unsigned int) -1)
   {
     s[len++] = '[';
     if (feature->start)
       len += hb_max (0, snprintf (s + len, ARRAY_LENGTH (s) - len, "%u", feature->start));
     if (feature->end != feature->start + 1) {
       s[len++] = ':';
-      if (feature->end != HB_FEATURE_GLOBAL_END)
+      if (feature->end != (unsigned int) -1)
 	len += hb_max (0, snprintf (s + len, ARRAY_LENGTH (s) - len, "%u", feature->end));
     }
     s[len++] = ']';
@@ -1000,21 +1007,6 @@ parse_one_variation (const char **pp, const char *end, hb_variation_t *variation
 
 /**
  * hb_variation_from_string:
- * @str: (array length=len) (element-type uint8_t): a string to parse
- * @len: length of @str, or -1 if string is %NULL terminated
- * @variation: (out): the #hb_variation_t to initialize with the parsed values
- *
- * Parses a string into a #hb_variation_t.
- *
- * The format for specifying variation settings follows. All valid CSS
- * font-variation-settings values other than 'normal' and 'inherited' are also
- * accepted, though, not documented below.
- *
- * The format is a tag, optionally followed by an equals sign, followed by a
- * number. For example `wght=500`, or `slnt=-7.5`.
- *
- * Return value:
- * %true if @str is successfully parsed, %false otherwise
  *
  * Since: 1.4.2
  */
@@ -1041,13 +1033,6 @@ hb_variation_from_string (const char *str, int len,
 
 /**
  * hb_variation_to_string:
- * @variation: an #hb_variation_t to convert
- * @buf: (array length=size) (out): output string
- * @size: the allocated size of @buf
- *
- * Converts an #hb_variation_t into a %NULL-terminated string in the format
- * understood by hb_variation_from_string(). The client in responsible for
- * allocating big enough size for @buf, 128 bytes is more than enough.
  *
  * Since: 1.4.2
  */
@@ -1074,11 +1059,9 @@ hb_variation_to_string (hb_variation_t *variation,
 
 /**
  * hb_color_get_alpha:
- * @color: an #hb_color_t we are interested in its channels.
+ * color: a #hb_color_t we are interested in its channels.
  *
- * Fetches the alpha channel of the given @color.
- *
- * Return value: Alpha channel value
+ * Return value: Alpha channel value of the given color
  *
  * Since: 2.1.0
  */
@@ -1090,11 +1073,9 @@ uint8_t
 
 /**
  * hb_color_get_red:
- * @color: an #hb_color_t we are interested in its channels.
+ * color: a #hb_color_t we are interested in its channels.
  *
- * Fetches the red channel of the given @color.
- *
- * Return value: Red channel value
+ * Return value: Red channel value of the given color
  *
  * Since: 2.1.0
  */
@@ -1106,11 +1087,9 @@ uint8_t
 
 /**
  * hb_color_get_green:
- * @color: an #hb_color_t we are interested in its channels.
+ * color: a #hb_color_t we are interested in its channels.
  *
- * Fetches the green channel of the given @color.
- *
- * Return value: Green channel value
+ * Return value: Green channel value of the given color
  *
  * Since: 2.1.0
  */
@@ -1122,11 +1101,9 @@ uint8_t
 
 /**
  * hb_color_get_blue:
- * @color: an #hb_color_t we are interested in its channels.
+ * color: a #hb_color_t we are interested in its channels.
  *
- * Fetches the blue channel of the given @color.
- *
- * Return value: Blue channel value
+ * Return value: Blue channel value of the given color
  *
  * Since: 2.1.0
  */
