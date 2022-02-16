@@ -29,12 +29,14 @@
 #include "hb.h"
 #include "hb-ot.h"
 
+#include <stdio.h>
+
 #ifdef HAVE_FREETYPE
 #include "hb-ft.h"
 #endif
 
 #ifdef HB_NO_OPEN
-#define hb_blob_create_from_file_or_fail(x)  hb_blob_get_empty ()
+#define hb_blob_create_from_file(x)  hb_blob_get_empty ()
 #endif
 
 int
@@ -46,8 +48,7 @@ main (int argc, char **argv)
   }
 
   /* Create the face */
-  hb_blob_t *blob = hb_blob_create_from_file_or_fail (argv[1]);
-  assert (blob);
+  hb_blob_t *blob = hb_blob_create_from_file (argv[1]);
   hb_face_t *face = hb_face_create (blob, 0 /* first face */);
   hb_blob_destroy (blob);
   blob = nullptr;

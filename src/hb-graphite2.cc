@@ -45,11 +45,7 @@
  * @short_description: Graphite2 integration
  * @include: hb-graphite2.h
  *
- * Functions for using HarfBuzz with fonts that include Graphite features.
- * 
- * For Graphite features to work, you must be sure that HarfBuzz was compiled
- * with the `graphite2` shaping engine enabled. Currently, the default is to
- * not enable `graphite2` shaping.
+ * Functions for using HarfBuzz with the Graphite2 fonts.
  **/
 
 
@@ -88,7 +84,7 @@ static const void *hb_graphite2_get_table (const void *data, unsigned int tag, s
   {
     blob = face_data->face->reference_table (tag);
 
-    hb_graphite2_tablelist_t *p = (hb_graphite2_tablelist_t *) hb_calloc (1, sizeof (hb_graphite2_tablelist_t));
+    hb_graphite2_tablelist_t *p = (hb_graphite2_tablelist_t *) calloc (1, sizeof (hb_graphite2_tablelist_t));
     if (unlikely (!p)) {
       hb_blob_destroy (blob);
       return nullptr;
@@ -123,16 +119,15 @@ _hb_graphite2_shaper_face_data_create (hb_face_t *face)
   }
   hb_blob_destroy (silf_blob);
 
-  hb_graphite2_face_data_t *data = (hb_graphite2_face_data_t *) hb_calloc (1, sizeof (hb_graphite2_face_data_t));
+  hb_graphite2_face_data_t *data = (hb_graphite2_face_data_t *) calloc (1, sizeof (hb_graphite2_face_data_t));
   if (unlikely (!data))
     return nullptr;
 
   data->face = face;
-  const gr_face_ops ops = {sizeof(gr_face_ops), &hb_graphite2_get_table, NULL};
-  data->grface = gr_make_face_with_ops (data, &ops, gr_face_preloadAll);
+  data->grface = gr_make_face (data, &hb_graphite2_get_table, gr_face_preloadAll);
 
   if (unlikely (!data->grface)) {
-    hb_free (data);
+    free (data);
     return nullptr;
   }
 
@@ -149,23 +144,15 @@ _hb_graphite2_shaper_face_data_destroy (hb_graphite2_face_data_t *data)
     hb_graphite2_tablelist_t *old = tlist;
     hb_blob_destroy (tlist->blob);
     tlist = tlist->next;
-    hb_free (old);
+    free (old);
   }
 
   gr_face_destroy (data->grface);
 
-  hb_free (data);
+  free (data);
 }
 
-/**
- * hb_graphite2_face_get_gr_face:
- * @face: @hb_face_t to query
- *
- * Fetches the Graphite2 gr_face corresponding to the specified
- * #hb_face_t face object.
- *
- * Return value: the gr_face found
- *
+/*
  * Since: 0.9.10
  */
 gr_face *
@@ -196,11 +183,6 @@ _hb_graphite2_shaper_font_data_destroy (hb_graphite2_font_data_t *data HB_UNUSED
 #ifndef HB_DISABLE_DEPRECATED
 /**
  * hb_graphite2_font_get_gr_font:
- * @font: An #hb_font_t
- *
- * Always returns %NULL. Use hb_graphite2_face_get_gr_face() instead.
- *
- * Return value: (nullable): Graphite2 font associated with @font.
  *
  * Since: 0.9.10
  * Deprecated: 1.4.2
@@ -290,7 +272,7 @@ _hb_graphite2_shape (hb_shape_plan_t    *shape_plan HB_UNUSED,
     return true;
   }
 
-  (void) buffer->ensure (glyph_count);
+  buffer->ensure (glyph_count);
   scratch = buffer->get_scratch_buffer (&scratch_size);
   while ((DIV_CEIL (sizeof (hb_graphite2_cluster_t) * buffer->len, sizeof (*scratch)) +
 	  DIV_CEIL (sizeof (hb_codepoint_t) * glyph_count, sizeof (*scratch))) > scratch_size)
@@ -394,7 +376,7 @@ _hb_graphite2_shape (hb_shape_plan_t    *shape_plan HB_UNUSED,
   buffer->len = glyph_count;
 
   /* Positioning. */
-  unsigned int currclus = UINT_MAX;
+  unsigned int currclus = (unsigned int) -1;
   const hb_glyph_info_t *info = buffer->info;
   hb_glyph_position_t *pPos = hb_buffer_get_glyph_positions (buffer, nullptr);
   if (!HB_DIRECTION_IS_BACKWARD(buffer->props.direction))
