@@ -101,23 +101,25 @@ struct hmtxvmtx
 		  unsigned num_advances)
   {
     unsigned idx = 0;
-    for (auto _ : it)
-    {
-      if (idx < num_advances)
-      {
-	LongMetric lm;
-	lm.advance = _.first;
-	lm.sb = _.second;
-	if (unlikely (!c->embed<LongMetric> (&lm))) return;
-      }
-      else
-      {
-	FWORD *sb = c->allocate_size<FWORD> (FWORD::static_size);
-	if (unlikely (!sb)) return;
-	*sb = _.second;
-      }
-      idx++;
-    }
+    + it
+    | hb_apply ([c, &idx, num_advances] (const hb_item_type<Iterator>& _)
+		{
+		  if (idx < num_advances)
+		  {
+		    LongMetric lm;
+		    lm.advance = _.first;
+		    lm.sb = _.second;
+		    if (unlikely (!c->embed<LongMetric> (&lm))) return;
+		  }
+		  else
+		  {
+		    FWORD *sb = c->allocate_size<FWORD> (FWORD::static_size);
+		    if (unlikely (!sb)) return;
+		    *sb = _.second;
+		  }
+		  idx++;
+		})
+    ;
   }
 
   bool subset (hb_subset_context_t *c) const
@@ -146,7 +148,7 @@ struct hmtxvmtx
 
     _mtx.fini ();
 
-    if (unlikely (c->serializer->in_error ()))
+    if (unlikely (c->serializer->ran_out_of_room || c->serializer->in_error ()))
       return_trace (false);
 
     // Amend header num hmetrics
@@ -167,7 +169,7 @@ struct hmtxvmtx
 
       num_advances = T::is_horizontal ? face->table.hhea->numberOfLongMetrics : face->table.vhea->numberOfLongMetrics;
 
-      table = hb_sanitize_context_t ().reference_table<hmtxvmtx> (face, T::tableTag);
+      table = hb_sanitize_context_t().reference_table<hmtxvmtx> (face, T::tableTag);
 
       /* Cap num_metrics() and num_advances() based on table length. */
       unsigned int len = table.get_length ();
@@ -184,7 +186,7 @@ struct hmtxvmtx
 	table = hb_blob_get_empty ();
       }
 
-      var_table = hb_sanitize_context_t ().reference_table<HVARVVAR> (face, T::variationsTag);
+      var_table = hb_sanitize_context_t().reference_table<HVARVVAR> (face, T::variationsTag);
     }
 
     void fini ()
@@ -214,7 +216,7 @@ struct hmtxvmtx
 	return side_bearing;
 
       if (var_table.get_length ())
-	return side_bearing + var_table->get_side_bearing_var (glyph, font->coords, font->num_coords); // TODO Optimize?!
+        return side_bearing + var_table->get_side_bearing_var (glyph, font->coords, font->num_coords); // TODO Optimize?!
 
       return _glyf_get_side_bearing_var (font, glyph, T::tableTag == HB_OT_TAG_vmtx);
 #else
@@ -248,7 +250,7 @@ struct hmtxvmtx
 	return advance;
 
       if (var_table.get_length ())
-	return advance + roundf (var_table->get_advance_var (glyph, font)); // TODO Optimize?!
+	return advance + roundf (var_table->get_advance_var (font, glyph)); // TODO Optimize?!
 
       return _glyf_get_advance_var (font, glyph, T::tableTag == HB_OT_TAG_vmtx);
 #else
@@ -293,29 +295,27 @@ struct hmtxvmtx
   };
 
   protected:
-  UnsizedArrayOf<LongMetric>
-		longMetricZ;	/* Paired advance width and leading
-				 * bearing values for each glyph. The
-				 * value numOfHMetrics comes from
-				 * the 'hhea' table. If the font is
-				 * monospaced, only one entry need
-				 * be in the array, but that entry is
-				 * required. The last entry applies to
-				 * all subsequent glyphs. */
-/*UnsizedArrayOf<FWORD>	leadingBearingX;*/
-				/* Here the advance is assumed
-				 * to be the same as the advance
-				 * for the last entry above. The
-				 * number of entries in this array is
-				 * derived from numGlyphs (from 'maxp'
-				 * table) minus numberOfLongMetrics.
-				 * This generally is used with a run
-				 * of monospaced glyphs (e.g., Kanji
-				 * fonts or Courier fonts). Only one
-				 * run is allowed and it must be at
-				 * the end. This allows a monospaced
-				 * font to vary the side bearing
-				 * values for each glyph. */
+  UnsizedArrayOf<LongMetric>longMetricZ;/* Paired advance width and leading
+					 * bearing values for each glyph. The
+					 * value numOfHMetrics comes from
+					 * the 'hhea' table. If the font is
+					 * monospaced, only one entry need
+					 * be in the array, but that entry is
+					 * required. The last entry applies to
+					 * all subsequent glyphs. */
+/*UnsizedArrayOf<FWORD>	leadingBearingX;*//* Here the advance is assumed
+					 * to be the same as the advance
+					 * for the last entry above. The
+					 * number of entries in this array is
+					 * derived from numGlyphs (from 'maxp'
+					 * table) minus numberOfLongMetrics.
+					 * This generally is used with a run
+					 * of monospaced glyphs (e.g., Kanji
+					 * fonts or Courier fonts). Only one
+					 * run is allowed and it must be at
+					 * the end. This allows a monospaced
+					 * font to vary the side bearing
+					 * values for each glyph. */
   public:
   DEFINE_SIZE_ARRAY (0, longMetricZ);
 };
