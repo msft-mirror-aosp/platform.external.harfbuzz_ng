@@ -46,6 +46,7 @@ struct hb_options_t
   bool unused : 1; /* In-case sign bit is here. */
   bool initialized : 1;
   bool uniscribe_bug_compatible : 1;
+  bool aat : 1;
 };
 
 union hb_options_union_t {
@@ -229,7 +230,7 @@ _hb_debug_msg<0> (const char *what HB_UNUSED,
 		  ...) {}
 
 #define DEBUG_MSG_LEVEL(WHAT, OBJ, LEVEL, LEVEL_DIR, ...)	_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), nullptr,    true, (LEVEL), (LEVEL_DIR), __VA_ARGS__)
-#define DEBUG_MSG(WHAT, OBJ, ...)				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), nullptr,    false, 0, 0, __VA_ARGS__)
+#define DEBUG_MSG(WHAT, OBJ, ...) 				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), nullptr,    false, 0, 0, __VA_ARGS__)
 #define DEBUG_MSG_FUNC(WHAT, OBJ, ...)				_hb_debug_msg<HB_DEBUG_##WHAT> (#WHAT, (OBJ), HB_FUNC, false, 0, 0, __VA_ARGS__)
 
 
@@ -302,16 +303,16 @@ struct hb_auto_trace_t
   {
     if (unlikely (returned)) {
       fprintf (stderr, "OUCH, double calls to return_trace().  This is a bug, please report.\n");
-      return std::forward<T> (v);
+      return hb_forward<T> (v);
     }
 
     _hb_debug_msg<max_level> (what, obj, func, true, plevel ? *plevel : 1, -1,
 			      "return %s (line %d)",
-			      hb_printer_t<hb_decay<decltype (v)>>().print (v), line);
+			      hb_printer_t<decltype (v)>().print (v), line);
     if (plevel) --*plevel;
     plevel = nullptr;
     returned = true;
-    return std::forward<T> (v);
+    return hb_forward<T> (v);
   }
 
   private:
@@ -333,7 +334,7 @@ struct hb_auto_trace_t<0, ret_t>
   template <typename T>
   T ret (T&& v,
 	 const char *func HB_UNUSED = nullptr,
-	 unsigned int line HB_UNUSED = 0) { return std::forward<T> (v); }
+	 unsigned int line HB_UNUSED = 0) { return hb_forward<T> (v); }
 };
 
 /* For disabled tracing; optimize out everything.
@@ -343,7 +344,7 @@ struct hb_no_trace_t {
   template <typename T>
   T ret (T&& v,
 	 const char *func HB_UNUSED = nullptr,
-	 unsigned int line HB_UNUSED = 0) { return std::forward<T> (v); }
+	 unsigned int line HB_UNUSED = 0) { return hb_forward<T> (v); }
 };
 
 #define return_trace(RET) return trace.ret (RET, HB_FUNC, __LINE__)
@@ -371,6 +372,10 @@ struct hb_no_trace_t {
 
 #ifndef HB_DEBUG_FT
 #define HB_DEBUG_FT (HB_DEBUG+0)
+#endif
+
+#ifndef HB_DEBUG_GET_COVERAGE
+#define HB_DEBUG_GET_COVERAGE (HB_DEBUG+0)
 #endif
 
 #ifndef HB_DEBUG_OBJECT
@@ -436,10 +441,6 @@ struct hb_no_trace_t {
    " ")
 #else
 #define TRACE_SUBSET(this) hb_no_trace_t<bool> trace
-#endif
-
-#ifndef HB_DEBUG_SUBSET_REPACK
-#define HB_DEBUG_SUBSET_REPACK (HB_DEBUG+0)
 #endif
 
 #ifndef HB_DEBUG_DISPATCH
