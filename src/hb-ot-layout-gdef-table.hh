@@ -41,18 +41,8 @@ namespace OT {
  * Attachment List Table
  */
 
-/* Array of contour point indices--in increasing numerical order */
-struct AttachPoint : Array16Of<HBUINT16>
-{
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    auto *out = c->serializer->start_embed (*this);
-    if (unlikely (!out)) return_trace (false);
-
-    return_trace (out->serialize (c->serializer, + iter ()));
-  }
-};
+typedef ArrayOf<HBUINT16> AttachPoint;	/* Array of contour point indices--in
+					 * increasing numerical order */
 
 struct AttachList
 {
@@ -73,33 +63,13 @@ struct AttachList
 
     if (point_count)
     {
-      + points.sub_array (start_offset, point_count)
-      | hb_sink (hb_array (point_array, *point_count))
-      ;
+      hb_array_t<const HBUINT16> array = points.sub_array (start_offset, point_count);
+      unsigned int count = array.length;
+      for (unsigned int i = 0; i < count; i++)
+	point_array[i] = array[i];
     }
 
     return points.len;
-  }
-
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    const hb_set_t &glyphset = *c->plan->glyphset_gsub ();
-    const hb_map_t &glyph_map = *c->plan->glyph_map;
-
-    auto *out = c->serializer->start_embed (*this);
-    if (unlikely (!c->serializer->extend_min (out))) return_trace (false);
-
-    hb_sorted_vector_t<hb_codepoint_t> new_coverage;
-    + hb_zip (this+coverage, attachPoint)
-    | hb_filter (glyphset, hb_first)
-    | hb_filter (subset_offset_array (c, out->attachPoint, this), hb_second)
-    | hb_map (hb_first)
-    | hb_map (glyph_map)
-    | hb_sink (new_coverage)
-    ;
-    out->coverage.serialize_serialize (c->serializer, new_coverage.iter ());
-    return_trace (bool (new_coverage));
   }
 
   bool sanitize (hb_sanitize_context_t *c) const
@@ -109,10 +79,10 @@ struct AttachList
   }
 
   protected:
-  Offset16To<Coverage>
+  OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table -- from
 					 * beginning of AttachList table */
-  Array16OfOffset16To<AttachPoint>
+  OffsetArrayOf<AttachPoint>
 		attachPoint;		/* Array of AttachPoint tables
 					 * in Coverage Index order */
   public:
@@ -126,13 +96,6 @@ struct AttachList
 struct CaretValueFormat1
 {
   friend struct CaretValue;
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    auto *out = c->serializer->embed (this);
-    if (unlikely (!out)) return_trace (false);
-    return_trace (true);
-  }
 
   private:
   hb_position_t get_caret_value (hb_font_t *font, hb_direction_t direction) const
@@ -156,13 +119,6 @@ struct CaretValueFormat1
 struct CaretValueFormat2
 {
   friend struct CaretValue;
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    auto *out = c->serializer->embed (this);
-    if (unlikely (!out)) return_trace (false);
-    return_trace (true);
-  }
 
   private:
   hb_position_t get_caret_value (hb_font_t *font, hb_direction_t direction, hb_codepoint_t glyph_id) const
@@ -197,19 +153,6 @@ struct CaretValueFormat3
 	   font->em_scale_y (coordinate) + (this+deviceTable).get_y_delta (font, var_store);
   }
 
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    auto *out = c->serializer->embed (this);
-    if (unlikely (!out)) return_trace (false);
-
-    return_trace (out->deviceTable.serialize_copy (c->serializer, deviceTable, this, c->serializer->to_bias (out),
-						   hb_serialize_context_t::Head, c->plan->layout_variation_idx_map));
-  }
-
-  void collect_variation_indices (hb_set_t *layout_variation_indices) const
-  { (this+deviceTable).collect_variation_indices (layout_variation_indices); }
-
   bool sanitize (hb_sanitize_context_t *c) const
   {
     TRACE_SANITIZE (this);
@@ -219,7 +162,7 @@ struct CaretValueFormat3
   protected:
   HBUINT16	caretValueFormat;	/* Format identifier--format = 3 */
   FWORD		coordinate;		/* X or Y value, in design units */
-  Offset16To<Device>
+  OffsetTo<Device>
 		deviceTable;		/* Offset to Device table for X or Y
 					 * value--from beginning of CaretValue
 					 * table */
@@ -230,41 +173,15 @@ struct CaretValueFormat3
 struct CaretValue
 {
   hb_position_t get_caret_value (hb_font_t *font,
-				 hb_direction_t direction,
-				 hb_codepoint_t glyph_id,
-				 const VariationStore &var_store) const
+					hb_direction_t direction,
+					hb_codepoint_t glyph_id,
+					const VariationStore &var_store) const
   {
     switch (u.format) {
     case 1: return u.format1.get_caret_value (font, direction);
     case 2: return u.format2.get_caret_value (font, direction, glyph_id);
     case 3: return u.format3.get_caret_value (font, direction, var_store);
     default:return 0;
-    }
-  }
-
-  template <typename context_t, typename ...Ts>
-  typename context_t::return_t dispatch (context_t *c, Ts&&... ds) const
-  {
-    TRACE_DISPATCH (this, u.format);
-    if (unlikely (!c->may_dispatch (this, &u.format))) return_trace (c->no_dispatch_return_value ());
-    switch (u.format) {
-    case 1: return_trace (c->dispatch (u.format1, std::forward<Ts> (ds)...));
-    case 2: return_trace (c->dispatch (u.format2, std::forward<Ts> (ds)...));
-    case 3: return_trace (c->dispatch (u.format3, std::forward<Ts> (ds)...));
-    default:return_trace (c->default_return_value ());
-    }
-  }
-
-  void collect_variation_indices (hb_set_t *layout_variation_indices) const
-  {
-    switch (u.format) {
-    case 1:
-    case 2:
-      return;
-    case 3:
-      u.format3.collect_variation_indices (layout_variation_indices);
-      return;
-    default: return;
     }
   }
 
@@ -293,43 +210,23 @@ struct CaretValue
 
 struct LigGlyph
 {
-  unsigned get_lig_carets (hb_font_t            *font,
-			   hb_direction_t        direction,
-			   hb_codepoint_t        glyph_id,
-			   const VariationStore &var_store,
-			   unsigned              start_offset,
-			   unsigned             *caret_count /* IN/OUT */,
-			   hb_position_t        *caret_array /* OUT */) const
+  unsigned int get_lig_carets (hb_font_t *font,
+			       hb_direction_t direction,
+			       hb_codepoint_t glyph_id,
+			       const VariationStore &var_store,
+			       unsigned int start_offset,
+			       unsigned int *caret_count /* IN/OUT */,
+			       hb_position_t *caret_array /* OUT */) const
   {
     if (caret_count)
     {
-      + carets.sub_array (start_offset, caret_count)
-      | hb_map (hb_add (this))
-      | hb_map ([&] (const CaretValue &value) { return value.get_caret_value (font, direction, glyph_id, var_store); })
-      | hb_sink (hb_array (caret_array, *caret_count))
-      ;
+      hb_array_t <const OffsetTo<CaretValue>> array = carets.sub_array (start_offset, caret_count);
+      unsigned int count = array.length;
+      for (unsigned int i = 0; i < count; i++)
+	caret_array[i] = (this+array[i]).get_caret_value (font, direction, glyph_id, var_store);
     }
 
     return carets.len;
-  }
-
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    auto *out = c->serializer->start_embed (*this);
-    if (unlikely (!c->serializer->extend_min (out))) return_trace (false);
-
-    + hb_iter (carets)
-    | hb_apply (subset_offset_array (c, out->carets, this))
-    ;
-
-    return_trace (bool (out->carets));
-  }
-
-  void collect_variation_indices (hb_collect_variation_indices_context_t *c) const
-  {
-    for (const Offset16To<CaretValue>& offset : carets.iter ())
-      (this+offset).collect_variation_indices (c->layout_variation_indices);
   }
 
   bool sanitize (hb_sanitize_context_t *c) const
@@ -339,7 +236,7 @@ struct LigGlyph
   }
 
   protected:
-  Array16OfOffset16To<CaretValue>
+  OffsetArrayOf<CaretValue>
 		carets;			/* Offset array of CaretValue tables
 					 * --from beginning of LigGlyph table
 					 * --in increasing coordinate order */
@@ -368,37 +265,6 @@ struct LigCaretList
     return lig_glyph.get_lig_carets (font, direction, glyph_id, var_store, start_offset, caret_count, caret_array);
   }
 
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    const hb_set_t &glyphset = *c->plan->glyphset_gsub ();
-    const hb_map_t &glyph_map = *c->plan->glyph_map;
-
-    auto *out = c->serializer->start_embed (*this);
-    if (unlikely (!c->serializer->extend_min (out))) return_trace (false);
-
-    hb_sorted_vector_t<hb_codepoint_t> new_coverage;
-    + hb_zip (this+coverage, ligGlyph)
-    | hb_filter (glyphset, hb_first)
-    | hb_filter (subset_offset_array (c, out->ligGlyph, this), hb_second)
-    | hb_map (hb_first)
-    | hb_map (glyph_map)
-    | hb_sink (new_coverage)
-    ;
-    out->coverage.serialize_serialize (c->serializer, new_coverage.iter ());
-    return_trace (bool (new_coverage));
-  }
-
-  void collect_variation_indices (hb_collect_variation_indices_context_t *c) const
-  {
-    + hb_zip (this+coverage, ligGlyph)
-    | hb_filter (c->glyph_set, hb_first)
-    | hb_map (hb_second)
-    | hb_map (hb_add (this))
-    | hb_apply ([c] (const LigGlyph& _) { _.collect_variation_indices (c); })
-    ;
-  }
-
   bool sanitize (hb_sanitize_context_t *c) const
   {
     TRACE_SANITIZE (this);
@@ -406,10 +272,10 @@ struct LigCaretList
   }
 
   protected:
-  Offset16To<Coverage>
+  OffsetTo<Coverage>
 		coverage;		/* Offset to Coverage table--from
 					 * beginning of LigCaretList table */
-  Array16OfOffset16To<LigGlyph>
+  OffsetArrayOf<LigGlyph>
 		ligGlyph;		/* Array of LigGlyph tables
 					 * in Coverage Index order */
   public:
@@ -422,34 +288,6 @@ struct MarkGlyphSetsFormat1
   bool covers (unsigned int set_index, hb_codepoint_t glyph_id) const
   { return (this+coverage[set_index]).get_coverage (glyph_id) != NOT_COVERED; }
 
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    auto *out = c->serializer->start_embed (*this);
-    if (unlikely (!c->serializer->extend_min (out))) return_trace (false);
-    out->format = format;
-
-    bool ret = true;
-    for (const Offset32To<Coverage>& offset : coverage.iter ())
-    {
-      auto *o = out->coverage.serialize_append (c->serializer);
-      if (unlikely (!o))
-      {
-	ret = false;
-	break;
-      }
-
-      //not using o->serialize_subset (c, offset, this, out) here because
-      //OTS doesn't allow null offset.
-      //See issue: https://github.com/khaledhosny/ots/issues/172
-      c->serializer->push ();
-      c->dispatch (this+offset);
-      c->serializer->add_link (*o, c->serializer->pop_pack ());
-    }
-
-    return_trace (ret && out->coverage.len);
-  }
-
   bool sanitize (hb_sanitize_context_t *c) const
   {
     TRACE_SANITIZE (this);
@@ -458,7 +296,7 @@ struct MarkGlyphSetsFormat1
 
   protected:
   HBUINT16	format;			/* Format identifier--format = 1 */
-  Array16Of<Offset32To<Coverage>>
+  ArrayOf<LOffsetTo<Coverage>>
 		coverage;		/* Array of long offsets to mark set
 					 * coverage tables */
   public:
@@ -472,15 +310,6 @@ struct MarkGlyphSets
     switch (u.format) {
     case 1: return u.format1.covers (set_index, glyph_id);
     default:return false;
-    }
-  }
-
-  bool subset (hb_subset_context_t *c) const
-  {
-    TRACE_SUBSET (this);
-    switch (u.format) {
-    case 1: return_trace (u.format1.subset (c));
-    default:return_trace (false);
     }
   }
 
@@ -527,7 +356,7 @@ struct GDEF
   unsigned int get_glyph_class (hb_codepoint_t glyph) const
   { return (this+glyphClassDef).get_class (glyph); }
   void get_glyphs_in_class (unsigned int klass, hb_set_t *glyphs) const
-  { (this+glyphClassDef).collect_class (glyphs, klass); }
+  { (this+glyphClassDef).add_class (glyphs, klass); }
 
   bool has_mark_attachment_types () const { return markAttachClassDef != 0; }
   unsigned int get_mark_attachment_type (hb_codepoint_t glyph) const
@@ -557,7 +386,7 @@ struct GDEF
 
   bool has_var_store () const { return version.to_int () >= 0x00010003u && varStore != 0; }
   const VariationStore &get_var_store () const
-  { return version.to_int () >= 0x00010003u ? this+varStore : Null (VariationStore); }
+  { return version.to_int () >= 0x00010003u ? this+varStore : Null(VariationStore); }
 
   /* glyph_props is a 16-bit integer where the lower 8-bit have bits representing
    * glyph class and other bits, and high 8-bit the mark attachment type (if any).
@@ -580,15 +409,15 @@ struct GDEF
     }
   }
 
-  HB_INTERNAL bool is_blocklisted (hb_blob_t *blob,
+  HB_INTERNAL bool is_blacklisted (hb_blob_t *blob,
 				   hb_face_t *face) const;
 
   struct accelerator_t
   {
     void init (hb_face_t *face)
     {
-      this->table = hb_sanitize_context_t ().reference_table<GDEF> (face);
-      if (unlikely (this->table->is_blocklisted (this->table.get_blob (), face)))
+      this->table = hb_sanitize_context_t().reference_table<GDEF> (face);
+      if (unlikely (this->table->is_blacklisted (this->table.get_blob (), face)))
       {
 	hb_blob_destroy (this->table.get_blob ());
 	this->table = hb_blob_get_empty ();
@@ -607,66 +436,24 @@ struct GDEF
 	   (version.to_int () >= 0x00010003u ? varStore.static_size : 0);
   }
 
-  void collect_variation_indices (hb_collect_variation_indices_context_t *c) const
-  { (this+ligCaretList).collect_variation_indices (c); }
-
-  void remap_layout_variation_indices (const hb_set_t *layout_variation_indices,
-				       hb_map_t *layout_variation_idx_map /* OUT */) const
-  {
-    if (version.to_int () < 0x00010003u || !varStore) return;
-    if (layout_variation_indices->is_empty ()) return;
-
-    unsigned new_major = 0, new_minor = 0;
-    unsigned last_major = (layout_variation_indices->get_min ()) >> 16;
-    for (unsigned idx : layout_variation_indices->iter ())
-    {
-      uint16_t major = idx >> 16;
-      if (major >= (this+varStore).get_sub_table_count ()) break;
-      if (major != last_major)
-      {
-	new_minor = 0;
-	++new_major;
-      }
-
-      unsigned new_idx = (new_major << 16) + new_minor;
-      layout_variation_idx_map->set (idx, new_idx);
-      ++new_minor;
-      last_major = major;
-    }
-  }
-
   bool subset (hb_subset_context_t *c) const
   {
     TRACE_SUBSET (this);
     auto *out = c->serializer->embed (*this);
     if (unlikely (!out)) return_trace (false);
 
-    bool subset_glyphclassdef = out->glyphClassDef.serialize_subset (c, glyphClassDef, this, nullptr, false, true);
-    bool subset_attachlist = out->attachList.serialize_subset (c, attachList, this);
-    bool subset_ligcaretlist = out->ligCaretList.serialize_subset (c, ligCaretList, this);
-    bool subset_markattachclassdef = out->markAttachClassDef.serialize_subset (c, markAttachClassDef, this, nullptr, false, true);
+    out->glyphClassDef.serialize_subset (c, glyphClassDef, this, out);
+    out->attachList = 0;//TODO(subset) serialize_subset (c, attachList, this, out);
+    out->ligCaretList = 0;//TODO(subset) serialize_subset (c, ligCaretList, this, out);
+    out->markAttachClassDef.serialize_subset (c, markAttachClassDef, this, out);
 
-    bool subset_markglyphsetsdef = true;
     if (version.to_int () >= 0x00010002u)
-    {
-      subset_markglyphsetsdef = out->markGlyphSetsDef.serialize_subset (c, markGlyphSetsDef, this);
-      if (!subset_markglyphsetsdef &&
-	  version.to_int () == 0x00010002u)
-	out->version.minor = 0;
-    }
+      out->markGlyphSetsDef = 0;// TODO(subset) serialize_subset (c, markGlyphSetsDef, this, out);
 
-    bool subset_varstore = true;
     if (version.to_int () >= 0x00010003u)
-    {
-      subset_varstore = out->varStore.serialize_subset (c, varStore, this);
-      if (!subset_varstore && version.to_int () == 0x00010003u)
-	out->version.minor = 2;
-    }
+      out->varStore = 0;// TODO(subset) serialize_subset (c, varStore, this, out);
 
-    return_trace (subset_glyphclassdef || subset_attachlist ||
-		  subset_ligcaretlist || subset_markattachclassdef ||
-		  (out->version.to_int () >= 0x00010002u && subset_markglyphsetsdef) ||
-		  (out->version.to_int () >= 0x00010003u && subset_varstore));
+    return_trace (true);
   }
 
   bool sanitize (hb_sanitize_context_t *c) const
@@ -685,28 +472,28 @@ struct GDEF
   protected:
   FixedVersion<>version;		/* Version of the GDEF table--currently
 					 * 0x00010003u */
-  Offset16To<ClassDef>
+  OffsetTo<ClassDef>
 		glyphClassDef;		/* Offset to class definition table
 					 * for glyph type--from beginning of
 					 * GDEF header (may be Null) */
-  Offset16To<AttachList>
+  OffsetTo<AttachList>
 		attachList;		/* Offset to list of glyphs with
 					 * attachment points--from beginning
 					 * of GDEF header (may be Null) */
-  Offset16To<LigCaretList>
+  OffsetTo<LigCaretList>
 		ligCaretList;		/* Offset to list of positioning points
 					 * for ligature carets--from beginning
 					 * of GDEF header (may be Null) */
-  Offset16To<ClassDef>
+  OffsetTo<ClassDef>
 		markAttachClassDef;	/* Offset to class definition table for
 					 * mark attachment type--from beginning
 					 * of GDEF header (may be Null) */
-  Offset16To<MarkGlyphSets>
+  OffsetTo<MarkGlyphSets>
 		markGlyphSetsDef;	/* Offset to the table of mark set
 					 * definitions--from beginning of GDEF
 					 * header (may be NULL).  Introduced
 					 * in version 0x00010002. */
-  Offset32To<VariationStore>
+  LOffsetTo<VariationStore>
 		varStore;		/* Offset to the table of Item Variation
 					 * Store--from beginning of GDEF
 					 * header (may be NULL).  Introduced
