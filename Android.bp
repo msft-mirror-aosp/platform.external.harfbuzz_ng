@@ -101,6 +101,38 @@ license {
 }
 
 cc_library {
+    name: "libharfbuzz_subset",
+    srcs: [
+        "src/hb-number.cc",
+        "src/hb-ot-cff1-table.cc",
+        "src/hb-ot-cff2-table.cc",
+        "src/hb-static.cc",
+        "src/hb-subset-cff-common.cc",
+        "src/hb-subset-cff1.cc",
+        "src/hb-subset-cff2.cc",
+        "src/hb-subset-input.cc",
+        "src/hb-subset-plan.cc",
+        "src/hb-subset-repacker.cc",
+        "src/hb-subset.cc",
+        "src/graph/gsubgpos-context.cc",
+    ],
+    shared_libs: [
+        "libharfbuzz_ng",
+    ],
+    export_include_dirs: ["src"],
+    cflags: [
+        "-DHAVE_PTHREAD",
+        "-DHB_NO_PRAGMA_GCC_DIAGNOSTIC",
+        "-DHAVE_OT",
+        "-DHAVE_ICU",
+        "-DHAVE_ICU_BUILTIN",
+        "-Werror",
+        "-Wno-unused-parameter",
+        "-Wno-missing-field-initializers",
+    ],
+}
+
+cc_library {
     name: "libharfbuzz_ng",
     host_supported: true,
     arch: {
@@ -109,7 +141,6 @@ cc_library {
         },
     },
     srcs: [
-        "src/graph/gsubgpos-context.cc",
         "src/hb-aat-layout.cc",
         "src/hb-aat-map.cc",
         "src/hb-blob.cc",
@@ -117,10 +148,10 @@ cc_library {
         "src/hb-buffer-verify.cc",
         "src/hb-buffer.cc",
         "src/hb-common.cc",
+        "src/hb-draw.cc",
         "src/hb-face.cc",
         "src/hb-fallback-shape.cc",
         "src/hb-font.cc",
-        "src/hb-icu.cc",
         "src/hb-map.cc",
         "src/hb-number.cc",
         "src/hb-ot-cff1-table.cc",
@@ -157,13 +188,6 @@ cc_library {
         "src/hb-shaper.cc",
         "src/hb-static.cc",
         "src/hb-style.cc",
-        "src/hb-subset-cff-common.cc",
-        "src/hb-subset-cff1.cc",
-        "src/hb-subset-cff2.cc",
-        "src/hb-subset-input.cc",
-        "src/hb-subset-plan.cc",
-        "src/hb-subset-repacker.cc",
-        "src/hb-subset.cc",
         "src/hb-ucd.cc",
         "src/hb-unicode.cc",
     ],
