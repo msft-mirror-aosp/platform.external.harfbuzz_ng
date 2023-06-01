@@ -107,5 +107,59 @@ main (int argc, char **argv)
     assert (v2.get_population () == 3);
   }
 
+  /* Test inverted sets. */
+  {
+    hb_set_t s;
+    s.invert();
+    s.del (5);
+
+    hb_codepoint_t start = HB_SET_VALUE_INVALID, last = HB_SET_VALUE_INVALID;
+    assert (s.next_range (&start, &last));
+    assert (start == 0);
+    assert (last == 4);
+    assert (s.next_range (&start, &last));
+    assert (start == 6);
+    assert (last == HB_SET_VALUE_INVALID - 1);
+    assert (!s.next_range (&start, &last));
+
+    start = HB_SET_VALUE_INVALID;
+    last = HB_SET_VALUE_INVALID;
+    assert (s.previous_range (&start, &last));
+    assert (start == 6);
+    assert (last == HB_SET_VALUE_INVALID - 1);
+    assert (s.previous_range (&start, &last));
+    assert (start == 0);
+    assert (last == 4);
+    assert (!s.previous_range (&start, &last));
+
+    assert (s.is_inverted ());
+    /* Inverted set returns true for invalid value; oh well. */
+    assert (s.has (HB_SET_VALUE_INVALID));
+  }
+
+  /* Adding HB_SET_VALUE_INVALID */
+  {
+    hb_set_t s;
+
+    s.add(HB_SET_VALUE_INVALID);
+    assert(!s.has(HB_SET_VALUE_INVALID));
+
+    s.clear();
+    assert(!s.add_range(HB_SET_VALUE_INVALID - 2, HB_SET_VALUE_INVALID));
+    assert(!s.has(HB_SET_VALUE_INVALID));
+
+    hb_codepoint_t array[] = {(unsigned) HB_SET_VALUE_INVALID, 0, 2};
+    s.clear();
+    s.add_array(array, 3);
+    assert(!s.has(HB_SET_VALUE_INVALID));
+    assert(s.has(2));
+
+    hb_codepoint_t sorted_array[] = {0, 2, (unsigned) HB_SET_VALUE_INVALID};
+    s.clear();
+    s.add_sorted_array(sorted_array, 3);
+    assert(!s.has(HB_SET_VALUE_INVALID));
+    assert(s.has(2));
+  }
+
   return 0;
 }
