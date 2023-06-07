@@ -1,6 +1,6 @@
 AC_PREREQ([2.64])
 AC_INIT([HarfBuzz],
-        [6.0.0],
+        [7.3.0],
         [https://github.com/harfbuzz/harfbuzz/issues/new],
         [harfbuzz],
         [http://harfbuzz.org/])
@@ -45,7 +45,7 @@ AC_SUBST(HB_VERSION)
 
 # Libtool version
 m4_define([hb_version_int],
-	  m4_eval(hb_version_major*10000 + hb_version_minor*100 + hb_version_micro))
+	  m4_eval(60000 + hb_version_major*100 + hb_version_minor*10 + hb_version_micro))
 HB_LIBTOOL_VERSION_INFO=hb_version_int:0:hb_version_int
 AC_SUBST(HB_LIBTOOL_VERSION_INFO)
 
@@ -68,7 +68,7 @@ GTK_DOC_CHECK([1.15],[--flavour no-tmpl])
 ])
 
 # Functions and headers
-AC_CHECK_FUNCS(atexit mprotect sysconf getpagesize mmap isatty newlocale uselocale)
+AC_CHECK_FUNCS(atexit mprotect sysconf getpagesize mmap isatty newlocale uselocale sincosf)
 AC_CHECK_HEADERS(unistd.h sys/mman.h stdbool.h xlocale.h)
 
 # Compiler flags
