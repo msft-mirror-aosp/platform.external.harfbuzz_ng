@@ -9,7 +9,7 @@ third_party {
     type: GIT
     value: "https://github.com/harfbuzz/harfbuzz"
   }
-  version: "7.3.0"
+  version: "8.0.1"
   license_type: RESTRICTED
   license_note: "would be NOTICE save for GPL in:\n"
   " m4/ax_code_coverage.m4\n"
@@ -18,7 +18,7 @@ third_party {
   " host CC-BY-NC* content.\n"
   last_upgrade_date {
     year: 2023
-    month: 5
-    day: 29
+    month: 7
+    day: 12
   }
 }
