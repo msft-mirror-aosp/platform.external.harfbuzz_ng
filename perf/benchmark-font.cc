@@ -42,6 +42,7 @@ enum operation_t
   glyph_h_advances,
   glyph_extents,
   draw_glyph,
+  paint_glyph,
   load_face_and_shape,
 };
 
@@ -192,6 +193,17 @@ static void BM_Font (benchmark::State &state,
       hb_draw_funcs_destroy (draw_funcs);
       break;
     }
+    case paint_glyph:
+    {
+      hb_paint_funcs_t *paint_funcs = hb_paint_funcs_create ();
+      for (auto _ : state)
+      {
+	for (unsigned gid = 0; gid < num_glyphs; ++gid)
+	  hb_font_paint_glyph (font, gid, paint_funcs, nullptr, 0, 0);
+      }
+      hb_paint_funcs_destroy (paint_funcs);
+      break;
+    }
     case load_face_and_shape:
     {
       for (auto _ : state)
@@ -202,6 +214,19 @@ static void BM_Font (benchmark::State &state,
 	hb_blob_destroy (blob);
 	hb_font_t *font = hb_font_create (face);
 	hb_face_destroy (face);
+
+	switch (backend)
+	{
+	  case HARFBUZZ:
+	    hb_ot_font_set_funcs (font);
+	    break;
+
+	  case FREETYPE:
+#ifdef HAVE_FREETYPE
+	    hb_ft_font_set_funcs (font);
+#endif
+	    break;
+	}
 
 	hb_buffer_t *buffer = hb_buffer_create ();
 	hb_buffer_add_utf8 (buffer, " ", -1, 0, -1);
@@ -281,6 +306,7 @@ int main(int argc, char** argv)
   TEST_OPERATION (glyph_h_advances, benchmark::kMicrosecond);
   TEST_OPERATION (glyph_extents, benchmark::kMicrosecond);
   TEST_OPERATION (draw_glyph, benchmark::kMicrosecond);
+  TEST_OPERATION (paint_glyph, benchmark::kMillisecond);
   TEST_OPERATION (load_face_and_shape, benchmark::kMicrosecond);
 
 #undef TEST_OPERATION
