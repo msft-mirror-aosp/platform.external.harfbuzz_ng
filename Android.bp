@@ -120,6 +120,11 @@ cc_library {
         "src/hb-subset.cc",
         "src/graph/gsubgpos-context.cc",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     shared_libs: [
         "libharfbuzz_ng",
     ],
