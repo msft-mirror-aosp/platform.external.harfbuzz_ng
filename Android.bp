@@ -102,6 +102,9 @@ license {
 
 cc_library {
     name: "libharfbuzz_subset",
+
+    host_supported: true,
+
     srcs: [
         "src/hb-number.cc",
         "src/hb-ot-cff1-table.cc",
