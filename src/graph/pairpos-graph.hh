@@ -215,7 +215,7 @@ struct PairPosFormat2 : public OT::Layout::GPOS_impl::PairPosFormat2_4<SmallType
     auto gid_and_class =
         + coverage->iter ()
         | hb_map_retains_sorting ([&] (hb_codepoint_t gid) {
-          return hb_pair_t<hb_codepoint_t, hb_codepoint_t> (gid, class_def_1->get_class (gid));
+          return hb_codepoint_pair_t (gid, class_def_1->get_class (gid));
         })
         ;
     class_def_size_estimator_t estimator (gid_and_class);
@@ -386,14 +386,14 @@ struct PairPosFormat2 : public OT::Layout::GPOS_impl::PairPosFormat2_4<SmallType
     auto klass_map =
     + coverage_table->iter ()
     | hb_map_retains_sorting ([&] (hb_codepoint_t gid) {
-      return hb_pair_t<hb_codepoint_t, hb_codepoint_t> (gid, class_def_1_table->get_class (gid));
+      return hb_codepoint_pair_t (gid, class_def_1_table->get_class (gid));
     })
     | hb_filter ([&] (hb_codepoint_t klass) {
       return klass >= start && klass < end;
     }, hb_second)
-    | hb_map_retains_sorting ([&] (hb_pair_t<hb_codepoint_t, hb_codepoint_t> gid_and_class) {
+    | hb_map_retains_sorting ([&] (hb_codepoint_pair_t gid_and_class) {
       // Classes must be from 0...N so subtract start
-      return hb_pair_t<hb_codepoint_t, hb_codepoint_t> (gid_and_class.first, gid_and_class.second - start);
+      return hb_codepoint_pair_t (gid_and_class.first, gid_and_class.second - start);
     })
     ;
 
@@ -419,7 +419,7 @@ struct PairPosFormat2 : public OT::Layout::GPOS_impl::PairPosFormat2_4<SmallType
     class_def_link->width = SmallTypes::size;
     class_def_link->objidx = class_def_2_id;
     class_def_link->position = 10;
-    graph.vertices_[class_def_2_id].parents.push (pair_pos_prime_id);
+    graph.vertices_[class_def_2_id].add_parent (pair_pos_prime_id);
     graph.duplicate (pair_pos_prime_id, class_def_2_id);
 
     return pair_pos_prime_id;
@@ -434,7 +434,7 @@ struct PairPosFormat2 : public OT::Layout::GPOS_impl::PairPosFormat2_4<SmallType
 
     char* start_addr = ((char*)&values[0]) + start * split_context.class1_record_size;
     unsigned num_records = end - start;
-    memcpy (&pair_pos_prime->values[0],
+    hb_memcpy (&pair_pos_prime->values[0],
             start_addr,
             num_records * split_context.class1_record_size);
 
@@ -519,7 +519,7 @@ struct PairPosFormat2 : public OT::Layout::GPOS_impl::PairPosFormat2_4<SmallType
     auto klass_map =
     + coverage.table->iter ()
     | hb_map_retains_sorting ([&] (hb_codepoint_t gid) {
-      return hb_pair_t<hb_codepoint_t, hb_codepoint_t> (gid, class_def_1.table->get_class (gid));
+      return hb_codepoint_pair_t (gid, class_def_1.table->get_class (gid));
     })
     | hb_filter ([&] (hb_codepoint_t klass) {
       return klass < count;
@@ -611,7 +611,7 @@ struct PairPos : public OT::Layout::GPOS_impl::PairPos
       return ((PairPosFormat1*)(&u.format1))->split_subtables (c, parent_index, this_index);
     case 2:
       return ((PairPosFormat2*)(&u.format2))->split_subtables (c, parent_index, this_index);
-#ifndef HB_NO_BORING_EXPANSION
+#ifndef HB_NO_BEYOND_64K
     case 3: HB_FALLTHROUGH;
     case 4: HB_FALLTHROUGH;
       // Don't split 24bit PairPos's.
@@ -631,7 +631,7 @@ struct PairPos : public OT::Layout::GPOS_impl::PairPos
       return ((PairPosFormat1*)(&u.format1))->sanitize (vertex);
     case 2:
       return ((PairPosFormat2*)(&u.format2))->sanitize (vertex);
-#ifndef HB_NO_BORING_EXPANSION
+#ifndef HB_NO_BEYOND_64K
     case 3: HB_FALLTHROUGH;
     case 4: HB_FALLTHROUGH;
 #endif
