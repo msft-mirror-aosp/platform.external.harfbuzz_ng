@@ -273,6 +273,9 @@ static const test_pair_t general_category_tests_more[] =
   /* Unicode-15.0 character additions */
   {   0x0CF3, HB_UNICODE_GENERAL_CATEGORY_SPACING_MARK },
 
+  /* Unicode-15.1 character additions */
+  {   0x31EF, HB_UNICODE_GENERAL_CATEGORY_OTHER_SYMBOL },
+
   { 0x111111, HB_UNICODE_GENERAL_CATEGORY_UNASSIGNED }
 };
 
@@ -754,9 +757,9 @@ test_unicode_setters (void)
     /* Since uf is immutable now, the following setter should do nothing. */
     p->func_setter (uf, (get_func_t) a_is_for_arabic_get_script, &data[1], free_up);
 
-    g_assert (data[0].freed && !data[1].freed);
+    g_assert (data[0].freed && data[1].freed);
     hb_unicode_funcs_destroy (uf);
-    g_assert (data[0].freed && !data[1].freed);
+    g_assert (data[0].freed && data[1].freed);
   }
 }
 
