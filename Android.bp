@@ -236,6 +236,8 @@ cc_library {
         "-Wno-unused-parameter",
         "-Wno-missing-field-initializers",
     ],
+
+    afdo: true,
 }
 
 /////////////////////////////////////////////////////////////////////
