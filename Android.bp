@@ -102,6 +102,9 @@ license {
 
 cc_library {
     name: "libharfbuzz_subset",
+
+    host_supported: true,
+
     srcs: [
         "src/hb-number.cc",
         "src/hb-ot-cff1-table.cc",
@@ -111,11 +114,17 @@ cc_library {
         "src/hb-subset-cff1.cc",
         "src/hb-subset-cff2.cc",
         "src/hb-subset-input.cc",
+        "src/hb-subset-instancer-solver.cc",
         "src/hb-subset-plan.cc",
         "src/hb-subset-repacker.cc",
         "src/hb-subset.cc",
         "src/graph/gsubgpos-context.cc",
     ],
+    target: {
+        windows: {
+            enabled: true,
+        },
+    },
     shared_libs: [
         "libharfbuzz_ng",
     ],
@@ -149,6 +158,7 @@ cc_library {
         "src/hb-buffer.cc",
         "src/hb-common.cc",
         "src/hb-draw.cc",
+        "src/hb-face-builder.cc",
         "src/hb-face.cc",
         "src/hb-fallback-shape.cc",
         "src/hb-font.cc",
@@ -182,6 +192,9 @@ cc_library {
         "src/hb-ot-shaper-vowel-constraints.cc",
         "src/hb-ot-tag.cc",
         "src/hb-ot-var.cc",
+        "src/hb-outline.cc",
+        "src/hb-paint-extents.cc",
+        "src/hb-paint.cc",
         "src/hb-set.cc",
         "src/hb-shape-plan.cc",
         "src/hb-shape.cc",
@@ -226,6 +239,8 @@ cc_library {
         "-Wno-unused-parameter",
         "-Wno-missing-field-initializers",
     ],
+
+    afdo: true,
 }
 
 /////////////////////////////////////////////////////////////////////
