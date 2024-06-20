@@ -95,7 +95,7 @@ license {
         "LICENSE_APACHE2.TXT",
         "LICENSE_ISC.TXT",
         "LICENSE_OFL.TXT",
-        "src/ms-use/COPYING",  // For MIT license
+        "src/ms-use/COPYING", // For MIT license
         "LICENSE_MIT_MODERN_VARIANT.TXT",
     ],
 }
@@ -114,6 +114,7 @@ cc_library {
         "src/hb-subset-cff1.cc",
         "src/hb-subset-cff2.cc",
         "src/hb-subset-input.cc",
+        "src/hb-subset-instancer-iup.cc",
         "src/hb-subset-instancer-solver.cc",
         "src/hb-subset-plan.cc",
         "src/hb-subset-repacker.cc",
@@ -138,6 +139,7 @@ cc_library {
         "-Werror",
         "-Wno-unused-parameter",
         "-Wno-missing-field-initializers",
+        "-Wno-implicit-fallthrough",
     ],
 }
 
@@ -238,6 +240,7 @@ cc_library {
         "-Werror",
         "-Wno-unused-parameter",
         "-Wno-missing-field-initializers",
+        "-Wno-implicit-fallthrough",
     ],
 
     afdo: true,
@@ -284,7 +287,7 @@ filegroup {
     visibility: ["//visibility:private"],
     licenses: ["external_harfbuzz_license.unused.GPLv2"],
     srcs: [
-        "test/shape/data/in-house/fonts/b895f8ff06493cc893ec44de380690ca0074edfa.ttf"
+        "test/shape/data/in-house/fonts/b895f8ff06493cc893ec44de380690ca0074edfa.ttf",
     ],
 }
 
@@ -354,7 +357,7 @@ license {
         // "SPDX-license-identifier-HPND-sell-variant",
     ],
     license_text: [
-        "LICENSE_HPND_SELL_VARIANT.TXT"
+        "LICENSE_HPND_SELL_VARIANT.TXT",
     ],
 }
 
@@ -383,7 +386,7 @@ filegroup {
     visibility: ["//visibility:private"],
     licenses: ["external_harfbuzz_license.unused.Apache-2.0"],
     srcs: [
-        "perf/fonts/Roboto-Regular.ttf"
+        "perf/fonts/Roboto-Regular.ttf",
     ],
 }
 
@@ -424,7 +427,7 @@ license {
         "LICENSE_OFL.TXT",
         "LICENSE_APACHE2.TXT",
         "LICENSE_MIT_MODERN_VARIANT.TXT",
-        "src/ms-use/COPYING",  // For MIT license
+        "src/ms-use/COPYING", // For MIT license
     ],
 }
 
@@ -432,7 +435,6 @@ filegroup {
     name: "external_harfbuzz.unused.tests",
     visibility: ["//visibility:private"],
     licenses: ["external_harfbuzz_license.unused.tests"],
-    srcs: [ "test/**/*" ],
-    path: "test"
+    srcs: ["test/**/*"],
+    path: "test",
 }
-
