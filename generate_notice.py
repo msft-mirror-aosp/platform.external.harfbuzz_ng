@@ -39,6 +39,9 @@ IGNORE_FILE_NAME = [
 
   # broken unreadable font file for fuzzing target
   "test/fuzzing/fonts/sbix-extents.ttf",
+
+  # ???
+  "xkcd.png",
 ]
 
 IGNORE_DIR_IF_NO_COPYRIGHT = [
@@ -258,6 +261,7 @@ NO_COPYRIGHT_FILES = [
   "util/Makefile.am",
   "util/Makefile.sources",
   "util/meson.build",
+  "util/test-hb-subset-parsing.c",
 ]
 
 class CommentType(Enum):
