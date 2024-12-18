@@ -261,16 +261,6 @@ license {
     ],
 }
 
-filegroup {
-    name: "external_harfbuzz.unused.GPLv3",
-    visibility: ["//visibility:private"],
-    licenses: ["external_harfbuzz_license.unused.GPLv3"],
-    srcs: [
-        "m4/ax_check_link_flag.m4",
-        "m4/ax_pthread.m4",
-    ],
-}
-
 license {
     name: "external_harfbuzz_license.unused.GPLv2",
     visibility: ["//visibility:private"],
@@ -302,13 +292,6 @@ license {
     ],
 }
 
-filegroup {
-    name: "external_harfbuzz.unused.LGPL",
-    visibility: ["//visibility:private"],
-    licenses: ["external_harfbuzz_license.unused.LGPL"],
-    srcs: ["m4/ax_code_coverage.m4"],
-}
-
 license {
     name: "external_harfbuzz_license.unused.MIT",
     visibility: ["//visibility:private"],
@@ -337,16 +320,6 @@ license {
     ],
     license_text: [
         "LICENSE_FSFAP.TXT",
-    ],
-}
-
-filegroup {
-    name: "external_harfbuzz.unused.FSFAP",
-    visibility: ["//visibility:private"],
-    licenses: ["external_harfbuzz_license.unused.FSFAP"],
-    srcs: [
-        "git.mk",
-        "m4/ax_cxx_compile_stdcxx.m4",
     ],
 }
 
