@@ -24,6 +24,7 @@ jobs:
       run: |
         export HOMEBREW_NO_AUTO_UPDATE=1
         export HOMEBREW_NO_INSTALL_CLEANUP=1
+        brew rm -f pkg-config@0.29.2
         brew install \
           cairo \
           freetype \
@@ -33,7 +34,7 @@ jobs:
           icu4c \
           meson \
           ninja \
-          pkg-config
+          pkgconf
     - name: Setup Python
       uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
       with:
@@ -61,7 +62,7 @@ jobs:
     - name: Generate Coverage
       run: ninja -Cbuild coverage-xml
     - name: Upload Coverage
-      uses: codecov/codecov-action@b9fd7d16f6d7d1b5d2bec1a2887e65ceed900238 # v4.6.0
+      uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e # v5.1.1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
         file: build/meson-logs/coverage.xml
